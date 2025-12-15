@@ -3,12 +3,14 @@ package de.thm.se.backend.DataAcessLayer;
 import de.thm.se.backend.model.WissenschaftlicheArbeit;
 import de.thm.se.backend.model.ArbeitMitDetails;
 import de.thm.se.backend.util.DatabaseConnection;
+import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class WissenschaftlicheArbeitDAO {
 
     // CREATE - Neue Arbeit anlegen

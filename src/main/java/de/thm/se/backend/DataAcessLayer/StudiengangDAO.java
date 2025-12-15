@@ -2,12 +2,14 @@ package de.thm.se.backend.DataAcessLayer;
 
 import de.thm.se.backend.model.Studiengang;
 import de.thm.se.backend.util.DatabaseConnection;
+import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class StudiengangDAO {
     // CREATE - Neuen Studiengang anlegen
     public int create(Studiengang sGang) throws SQLException {

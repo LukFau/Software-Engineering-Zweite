@@ -2,12 +2,14 @@ package de.thm.se.backend.DataAcessLayer;
 
 import de.thm.se.backend.model.Semesterzeit;
 import de.thm.se.backend.util.DatabaseConnection;
+import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public class SemesterzeitDAO {
     // CREATE - Neue Semesterzeit anlegen
     public int create(Semesterzeit semZ) throws SQLException {
