@@ -8,20 +8,13 @@ const StudierendenListe = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchStudents = async () => {
-            try {
-                const response = await api.get('/studierende');
-                setStudents(response.data);
-            } catch (error) {
-                console.error("Fehler beim Laden der Studierenden:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchStudents();
+        api.get('/studierende')
+            .then(res => setStudents(res.data))
+            .catch(err => console.error(err))
+            .finally(() => setIsLoading(false));
     }, []);
 
-    if (isLoading) return <div className="text-center mt-10">Lade Studierende...</div>;
+    if (isLoading) return <div className="text-center mt-10">Lade Daten...</div>;
 
     return (
         <div className="space-y-6 mt-6">
@@ -31,7 +24,6 @@ const StudierendenListe = () => {
                     + Studierenden anlegen
                 </Link>
             </div>
-
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -44,9 +36,9 @@ const StudierendenListe = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                     {students.map((s) => (
-                        <tr key={s.studierendenId} onClick={() => navigate(`/studierende/${s.studierendenId}`)} className="hover:bg-indigo-50 cursor-pointer transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">{s.matrikelnummer}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{s.nachname}</td>
+                        <tr key={s.studierendenId} onClick={() => navigate(`/studierende/${s.studierendenId}`)} className="hover:bg-indigo-50 cursor-pointer">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">{s.matrikelnummer}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">{s.nachname}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{s.vorname}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.email}</td>
                         </tr>
@@ -57,5 +49,4 @@ const StudierendenListe = () => {
         </div>
     );
 };
-
 export default StudierendenListe;

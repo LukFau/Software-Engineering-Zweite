@@ -7,57 +7,129 @@ const ArbeitenMaske = () => {
     const navigate = useNavigate();
     const isNew = id === 'neu';
     const [mode, setMode] = useState(isNew ? 'edit' : 'view');
-    const [isLoading, setIsLoading] = useState(!isNew);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Listen für Dropdowns
+    const [students, setStudents] = useState([]);
+    const [referenten, setReferenten] = useState([]);
 
     const [formData, setFormData] = useState({
-        titel: '', studentId: '', studentName: '', studiengang: '', referent1Id: '', referent2Id: '',
-        startDatum: '', abgabeDatum: '', korrekturEnde: '', status: 'in Planung',
-        noteArbeit: '', noteKolloquium: '', swsDeputat: 0.0, istAbgebrochen: false
+        titel: '',
+        studierendenId: '',
+        studiengangId: 1, // Dummy Default
+        pruefungsordnungId: 1, // Dummy Default
+        semesterId: 1, // Dummy Default
+        typ: 'Bachelor',
+        status: 'in Planung',
+        // Zeitdaten
+        startDatum: '',
+        abgabeDatum: '',
+        kolloquiumsDatum: '',
+        // Betreuer (IDs)
+        referent1Id: '',
+        referent2Id: ''
     });
 
     useEffect(() => {
-        if (!isNew) {
-            api.get(`/studierende/${id}`)
-                .then(res => {
+        const loadBaseData = async () => {
+            try {
+                const [studRes, refRes] = await Promise.all([
+                    api.get('/studierende'),
+                    api.get('/betreuer')
+                ]);
+                setStudents(studRes.data);
+                setReferenten(refRes.data);
+
+                if (!isNew) {
+                    // Arbeit laden
+                    const arbeitRes = await api.get(`/wissenschaftliche-arbeiten/${id}`);
+                    const arbeit = arbeitRes.data;
+
+                    // Versuchen Zeitdaten zu laden (wenn vorhanden)
+                    let zeiten = {};
+                    try {
+                        const zeitRes = await api.get(`/zeitdaten/arbeit/${id}`);
+                        if (zeitRes.data) zeiten = zeitRes.data;
+                    } catch (e) { console.log("Keine Zeitdaten gefunden"); }
+
                     setFormData({
-                        vorname: res.data.vorname,
-                        nachname: res.data.nachname,
-                        matrikelnr: res.data.matrikelnummer, // Mapping beachten!
-                        email: res.data.email,
-                        // ...
+                        titel: arbeit.titel,
+                        studierendenId: arbeit.studierendenId,
+                        studiengangId: arbeit.studiengangId,
+                        pruefungsordnungId: arbeit.pruefungsordnungId,
+                        semesterId: arbeit.semesterId,
+                        typ: arbeit.typ,
+                        status: arbeit.status,
+                        startDatum: zeiten.anfangsdatum || '',
+                        abgabeDatum: zeiten.abgabedatum || '',
+                        kolloquiumsDatum: zeiten.kolloquiumsdatum || '',
+                        referent1Id: '', // TODO: Müsste aus Notenbestandteil geladen werden
+                        referent2Id: ''
                     });
-                    setIsLoading(false);
-                })
-                .catch(err => console.error(err));
-        }
+                }
+            } catch (error) {
+                console.error("Fehler beim Laden:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadBaseData();
     }, [id, isNew]);
 
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
     const handleSave = async (e) => {
         e.preventDefault();
-
-        // Daten für Backend mappen (Keys müssen zum Java-Model passen)
-        const payload = {
-            vorname: formData.vorname,
-            nachname: formData.nachname,
-            matrikelnummer: formData.matrikelnr,
-            email: formData.email,
-            // geburtsdatum etc...
-        };
-
         try {
+            let arbeitId = id;
+
+            // 1. Arbeit speichern
+            const arbeitPayload = {
+                titel: formData.titel,
+                studierendenId: parseInt(formData.studierendenId),
+                studiengangId: parseInt(formData.studiengangId),
+                pruefungsordnungId: parseInt(formData.pruefungsordnungId),
+                semesterId: parseInt(formData.semesterId),
+                typ: formData.typ,
+                status: formData.status
+            };
+
             if (isNew) {
-                await api.post('/studierende', payload);
-                alert("Student angelegt!");
-                navigate('/studierende');
+                const res = await api.post('/wissenschaftliche-arbeiten', arbeitPayload);
+                arbeitId = res.data.arbeitId;
             } else {
-                await api.put(`/studierende/${id}`, payload);
-                alert("Student aktualisiert!");
-                setMode('view');
+                await api.put(`/wissenschaftliche-arbeiten/${id}`, arbeitPayload);
             }
+
+            // 2. Zeitdaten speichern (Create or Update Logik vereinfacht: immer create wenn neu)
+            if (formData.startDatum || formData.abgabeDatum) {
+                const zeitPayload = {
+                    arbeitId: parseInt(arbeitId),
+                    anfangsdatum: formData.startDatum || null,
+                    abgabedatum: formData.abgabeDatum || null,
+                    kolloquiumsdatum: formData.kolloquiumsDatum || null
+                };
+                // Hinweis: Hier bräuchte man eigentlich eine ID Check Logik für Update
+                // Wir senden einfach einen Post für neue Zeitdaten
+                await api.post('/zeitdaten', zeitPayload);
+            }
+
+            // 3. Betreuer verknüpfen (Optional: Über Notenbestandteil erstellen)
+            if (formData.referent1Id) {
+                await api.post('/notenbestandteile', {
+                    arbeitId: parseInt(arbeitId),
+                    betreuerId: parseInt(formData.referent1Id),
+                    rolle: 'Referent',
+                    noteArbeit: 0, noteKolloquium: 0, gewichtung: 0
+                });
+            }
+
+            alert("Speichern erfolgreich!");
+            navigate('/arbeiten');
+
         } catch (error) {
-            console.error("Fehler beim Speichern:", error);
-            alert("Fehler beim Speichern.");
+            console.error(error);
+            alert("Fehler beim Speichern: " + error.message);
         }
     };
 
@@ -69,7 +141,6 @@ const ArbeitenMaske = () => {
         ? "block w-full text-gray-900 bg-transparent border-b border-gray-200 py-2 focus:outline-none cursor-default"
         : "block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm";
 
-    // Section Component
     const Section = ({ title, children }) => (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
@@ -83,23 +154,19 @@ const ArbeitenMaske = () => {
 
     return (
         <div className="max-w-5xl mx-auto pb-12">
-
-            {/* Header Area */}
             <div className="flex justify-between items-start mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">
-                        {isNew ? 'Neue Arbeit anlegen' : formData.titel || 'Arbeit bearbeiten'}
+                        {isNew ? 'Neue Arbeit anlegen' : formData.titel}
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        Status: <span className={`font-semibold ${formData.status === 'in Bearbeitung' ? 'text-yellow-600' : 'text-gray-700'}`}>{formData.status}</span>
-                    </p>
+                    <p className="text-sm text-gray-500 mt-1">Status: {formData.status}</p>
                 </div>
                 <div className="flex space-x-3">
-                    <button onClick={() => navigate('/arbeiten')} className="px-4 py-2 border bg-white rounded-md text-sm text-gray-600 hover:bg-gray-50">Abbrechen</button>
+                    <button onClick={() => navigate('/arbeiten')} className="px-4 py-2 border bg-white rounded-md text-sm text-gray-600">Abbrechen</button>
                     {mode === 'view' ? (
-                        <button onClick={() => setMode('edit')} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">Bearbeiten</button>
+                        <button onClick={() => setMode('edit')} className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm">Bearbeiten</button>
                     ) : (
-                        <button onClick={handleSave} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700">Speichern</button>
+                        <button onClick={handleSave} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm">Speichern</button>
                     )}
                 </div>
             </div>
@@ -113,18 +180,25 @@ const ArbeitenMaske = () => {
                     </div>
                     <div>
                         <label className={labelStyle}>Studierende/r</label>
-                        {mode === 'edit' && isNew ? (
-                            <select name="studentId" onChange={handleChange} className={inputStyle(false)}>
+                        {mode === 'edit' ? (
+                            <select name="studierendenId" value={formData.studierendenId} onChange={handleChange} className={inputStyle(false)}>
                                 <option value="">Bitte wählen...</option>
-                                <option value="101">Max Mustermann (Logistics)</option>
+                                {students.map(s => (
+                                    <option key={s.studierendenId} value={s.studierendenId}>
+                                        {s.nachname}, {s.vorname} ({s.matrikelnummer})
+                                    </option>
+                                ))}
                             </select>
                         ) : (
-                            <input type="text" value={formData.studentName} readOnly className={inputStyle(true)} />
+                            <input type="text" value={students.find(s => s.studierendenId === formData.studierendenId)?.nachname || formData.studierendenId} readOnly className={inputStyle(true)} />
                         )}
                     </div>
                     <div>
-                        <label className={labelStyle}>Studiengang</label>
-                        <input type="text" value={formData.studiengang} readOnly className={inputStyle(true)} />
+                        <label className={labelStyle}>Typ</label>
+                        <select name="typ" value={formData.typ} onChange={handleChange} disabled={mode === 'view'} className={inputStyle(mode === 'view')}>
+                            <option>Bachelor</option>
+                            <option>Master</option>
+                        </select>
                     </div>
                 </Section>
 
@@ -132,24 +206,21 @@ const ArbeitenMaske = () => {
                 <Section title="Prüfer & Betreuung">
                     <div>
                         <label className={labelStyle}>Erstprüfer</label>
-                        {mode === 'edit' ? (
-                            <select name="referent1Id" value={formData.referent1Id} onChange={handleChange} className={inputStyle(false)}>
-                                <option value="1">Prof. Dr. Müller</option>
-                                <option value="2">Prof. Dr. Schmidt</option>
-                            </select>
-                        ) : (
-                            <input type="text" value="Prof. Dr. Müller" readOnly className={inputStyle(true)} />
-                        )}
+                        <select name="referent1Id" value={formData.referent1Id} onChange={handleChange} disabled={mode === 'view'} className={inputStyle(mode === 'view')}>
+                            <option value="">Bitte wählen...</option>
+                            {referenten.map(r => (
+                                <option key={r.betreuerId} value={r.betreuerId}>{r.nachname}, {r.vorname}</option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className={labelStyle}>Zweitprüfer</label>
-                        {mode === 'edit' ? (
-                            <select name="referent2Id" value={formData.referent2Id} onChange={handleChange} className={inputStyle(false)}>
-                                <option value="3">Prof. Dr. Weber</option>
-                            </select>
-                        ) : (
-                            <input type="text" value="Prof. Dr. Schmidt" readOnly className={inputStyle(true)} />
-                        )}
+                        <select name="referent2Id" value={formData.referent2Id} onChange={handleChange} disabled={mode === 'view'} className={inputStyle(mode === 'view')}>
+                            <option value="">Bitte wählen...</option>
+                            {referenten.map(r => (
+                                <option key={r.betreuerId} value={r.betreuerId}>{r.nachname}, {r.vorname}</option>
+                            ))}
+                        </select>
                     </div>
                 </Section>
 
@@ -164,42 +235,15 @@ const ArbeitenMaske = () => {
                         <input type="date" name="abgabeDatum" value={formData.abgabeDatum} onChange={handleChange} readOnly={mode === 'view'} className={inputStyle(mode === 'view')} />
                     </div>
                     <div>
-                        <label className={labelStyle}>Ende der Korrektur (Ziel)</label>
-                        <input type="date" name="korrekturEnde" value={formData.korrekturEnde} onChange={handleChange} readOnly={mode === 'view'} className={inputStyle(mode === 'view')} />
-                    </div>
-                    <div>
                         <label className={labelStyle}>Aktueller Status</label>
-                        {mode === 'edit' ? (
-                            <select name="status" value={formData.status} onChange={handleChange} className={inputStyle(false)}>
-                                <option>in Planung</option>
-                                <option>in Bearbeitung</option>
-                                <option>korrektur</option>
-                                <option>abgeschlossen</option>
-                                <option>abgebrochen</option>
-                            </select>
-                        ) : (
-                            <div className="py-2"><span className="px-2 py-1 bg-gray-100 rounded text-sm">{formData.status}</span></div>
-                        )}
+                        <select name="status" value={formData.status} onChange={handleChange} disabled={mode === 'view'} className={inputStyle(mode === 'view')}>
+                            <option>in Planung</option>
+                            <option>in Bearbeitung</option>
+                            <option>abgeschlossen</option>
+                            <option>abgebrochen</option>
+                        </select>
                     </div>
                 </Section>
-
-                {/* 4. Benotung (Nur sichtbar, wenn nicht neu) */}
-                {!isNew && (
-                    <Section title="Ergebnisse & Deputat">
-                        <div>
-                            <label className={labelStyle}>Note Arbeit</label>
-                            <input type="text" name="noteArbeit" value={formData.noteArbeit} onChange={handleChange} readOnly={mode === 'view'} className={inputStyle(mode === 'view')} placeholder="-" />
-                        </div>
-                        <div>
-                            <label className={labelStyle}>Note Kolloquium</label>
-                            <input type="text" name="noteKolloquium" value={formData.noteKolloquium} readOnly className={inputStyle(true)} placeholder="(wird über Protokoll erfasst)" />
-                        </div>
-                        <div>
-                            <label className={labelStyle}>Angerechnetes Deputat (SWS)</label>
-                            <input type="number" step="0.1" name="swsDeputat" value={formData.swsDeputat} readOnly className={inputStyle(true)} />
-                        </div>
-                    </Section>
-                )}
             </form>
         </div>
     );

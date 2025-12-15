@@ -3,8 +3,8 @@ import api from '../services/api';
 
 const DateiImport = () => {
     const [file, setFile] = useState(null);
-    const [status, setStatus] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleFileChange = (e) => {
         setFile(e.target.files[0]);
@@ -13,62 +13,60 @@ const DateiImport = () => {
     const handleUpload = async (e) => {
         e.preventDefault();
         if (!file) {
-            setStatus('Bitte eine Datei auswählen.');
+            setMessage('Bitte wählen Sie eine Datei aus.');
             return;
         }
 
         const formData = new FormData();
         formData.append('file', file);
 
-        setIsUploading(true);
-        setStatus('');
+        setLoading(true);
+        setMessage('');
 
         try {
-            // POST Request an dein Backend
             const response = await api.post('/import/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setStatus('Erfolg: ' + response.data);
+            setMessage(response.data);
         } catch (error) {
             console.error(error);
-            setStatus('Fehler beim Hochladen: ' + (error.response?.data || error.message));
+            setMessage('Fehler beim Upload: ' + (error.response?.data || error.message));
         } finally {
-            setIsUploading(false);
+            setLoading(false);
         }
     };
 
     return (
-        <div className="max-w-2xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-md">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Datenimport (Excel)</h2>
+        <div className="max-w-2xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-md">
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">Excel Import</h2>
+            <p className="mb-4 text-gray-600">Laden Sie hier die "Wissenschaftliche Arbeiten" Excel-Datei hoch.</p>
 
-            <div className="mb-6 p-4 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
-                <p className="text-sm">Bitte laden Sie hier die Excel-Datei "Wissenschaftliche Arbeiten" hoch. Die Datei wird verarbeitet und die Datenbank aktualisiert.</p>
-            </div>
-
-            <form onSubmit={handleUpload} className="space-y-6">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-500 transition-colors">
+            <form onSubmit={handleUpload} className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
                     <input
                         type="file"
-                        accept=".xlsx, .xls"
+                        accept=".xlsx"
                         onChange={handleFileChange}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        hover:file:bg-indigo-100"
                     />
                 </div>
-
-                <div className="flex justify-end">
-                    <button
-                        type="submit"
-                        disabled={isUploading}
-                        className={`px-6 py-2 rounded-md text-white font-medium ${isUploading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                    >
-                        {isUploading ? 'Wird verarbeitet...' : 'Import starten'}
-                    </button>
-                </div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className={`w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white 
+                    ${loading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                >
+                    {loading ? 'Importiere...' : 'Hochladen & Importieren'}
+                </button>
             </form>
-
-            {status && (
-                <div className={`mt-4 p-4 rounded-md ${status.includes('Erfolg') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                    {status}
+            {message && (
+                <div className={`mt-4 p-4 rounded ${message.includes('Fehler') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                    {message}
                 </div>
             )}
         </div>
