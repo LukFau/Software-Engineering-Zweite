@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: Einfache globale Schriftart oder Farbkonfiguration */
+body {
+    font-family: 'Inter', sans-serif; /* Oder eine andere schlichte, moderne Schriftart */
+    background-color: #f8f9fa;
+}
