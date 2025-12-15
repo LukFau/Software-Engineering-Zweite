@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-const DUMMY_STUDENTS = [
-    { id: 101, vorname: "Max", nachname: "Mustermann", matrikelnr: "123456", email: "max.mustermann@stud.thm.de", studiengang: "M.Sc. Logistics" },
-    { id: 102, vorname: "Anna", nachname: "Fischer", matrikelnr: "654321", email: "anna.fischer@stud.thm.de", studiengang: "B.Eng. Bau" },
-    { id: 103, vorname: "Markus", nachname: "Wolf", matrikelnr: "987654", email: "markus.wolf@stud.thm.de", studiengang: "B.Sc. Informatik" },
-];
+import api from '../services/api';
 
 const StudierendenListe = () => {
     const [students, setStudents] = useState([]);
@@ -13,11 +8,17 @@ const StudierendenListe = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Später: await api.get('/studierende');
-        setTimeout(() => {
-            setStudents(DUMMY_STUDENTS);
-            setIsLoading(false);
-        }, 500);
+        const fetchStudents = async () => {
+            try {
+                const response = await api.get('/studierende');
+                setStudents(response.data);
+            } catch (error) {
+                console.error("Fehler beim Laden der Studierenden:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchStudents();
     }, []);
 
     if (isLoading) return <div className="text-center mt-10">Lade Studierende...</div>;
@@ -38,17 +39,15 @@ const StudierendenListe = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matrikelnr.</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nachname</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vorname</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Studiengang</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">E-Mail</th>
                     </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                     {students.map((s) => (
-                        <tr key={s.id} onClick={() => navigate(`/studierende/${s.id}`)} className="hover:bg-indigo-50 cursor-pointer transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">{s.matrikelnr}</td>
+                        <tr key={s.studierendenId} onClick={() => navigate(`/studierende/${s.studierendenId}`)} className="hover:bg-indigo-50 cursor-pointer transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">{s.matrikelnummer}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{s.nachname}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{s.vorname}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.studiengang}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.email}</td>
                         </tr>
                     ))}

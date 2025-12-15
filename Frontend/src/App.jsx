@@ -10,10 +10,7 @@ import StudierendenListe from './pages/StudierendenListe';
 import StudierendenMaske from './pages/StudierendenMaske';
 import ReferentenListe from './pages/ReferentenListe';
 import ReferentenMaske from './pages/ReferentenMaske';
-
-// Platzhalter
-import { PlaceholderPage } from './components/Placeholders';
-const DateiImport = () => <PlaceholderPage title="Datei Import" />;
+import DateiImport from './pages/DateiImport';
 
 function App() {
     return (

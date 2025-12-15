@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const ArbeitenMaske = () => {
     const { id } = useParams();
@@ -16,19 +17,49 @@ const ArbeitenMaske = () => {
 
     useEffect(() => {
         if (!isNew) {
-            setTimeout(() => {
-                setFormData({
-                    titel: "Einsatz von KI in der Logistik", studentId: "101", studentName: "Max Mustermann", studiengang: "M.Sc. Global Logistics",
-                    referent1Id: "1", referent2Id: "2", startDatum: "2023-10-01", abgabeDatum: "2024-03-31", korrekturEnde: "",
-                    status: "in Bearbeitung", noteArbeit: "", noteKolloquium: "", swsDeputat: 0.6, istAbgebrochen: false
-                });
-                setIsLoading(false);
-            }, 600);
+            api.get(`/studierende/${id}`)
+                .then(res => {
+                    setFormData({
+                        vorname: res.data.vorname,
+                        nachname: res.data.nachname,
+                        matrikelnr: res.data.matrikelnummer, // Mapping beachten!
+                        email: res.data.email,
+                        // ...
+                    });
+                    setIsLoading(false);
+                })
+                .catch(err => console.error(err));
         }
     }, [id, isNew]);
 
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    const handleSave = (e) => { e.preventDefault(); setMode('view'); };
+    const handleSave = async (e) => {
+        e.preventDefault();
+
+        // Daten für Backend mappen (Keys müssen zum Java-Model passen)
+        const payload = {
+            vorname: formData.vorname,
+            nachname: formData.nachname,
+            matrikelnummer: formData.matrikelnr,
+            email: formData.email,
+            // geburtsdatum etc...
+        };
+
+        try {
+            if (isNew) {
+                await api.post('/studierende', payload);
+                alert("Student angelegt!");
+                navigate('/studierende');
+            } else {
+                await api.put(`/studierende/${id}`, payload);
+                alert("Student aktualisiert!");
+                setMode('view');
+            }
+        } catch (error) {
+            console.error("Fehler beim Speichern:", error);
+            alert("Fehler beim Speichern.");
+        }
+    };
 
     if (isLoading) return <div className="p-8 text-center">Lade Datensatz...</div>;
 

@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-const DUMMY_REFS = [
-    { id: 1, vorname: "Hans", nachname: "Müller", titel: "Prof. Dr.", email: "hans.mueller@thm.de", sws: 14.5 },
-    { id: 2, vorname: "Sarah", nachname: "Schmidt", titel: "Prof. Dr.", email: "sarah.schmidt@thm.de", sws: 19.0 },
-];
+import api from '../services/api';
 
 const ReferentenListe = () => {
     const [refs, setRefs] = useState([]);
@@ -12,10 +8,17 @@ const ReferentenListe = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        setTimeout(() => {
-            setRefs(DUMMY_REFS);
-            setIsLoading(false);
-        }, 500);
+        const fetchBetreuer = async () => {
+            try {
+                const response = await api.get('/betreuer');
+                setRefs(response.data);
+            } catch (error) {
+                console.error("Fehler beim Laden der Betreuer:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchBetreuer();
     }, []);
 
     if (isLoading) return <div className="text-center mt-10">Lade Referenten...</div>;
@@ -35,16 +38,16 @@ const ReferentenListe = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titel</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">E-Mail</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aktuelles Deputat</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rolle</th>
                     </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                     {refs.map((r) => (
-                        <tr key={r.id} onClick={() => navigate(`/referenten/${r.id}`)} className="hover:bg-indigo-50 cursor-pointer transition-colors">
+                        <tr key={r.betreuerId} onClick={() => navigate(`/referenten/${r.betreuerId}`)} className="hover:bg-indigo-50 cursor-pointer transition-colors">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.titel}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{r.nachname}, {r.vorname}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.email}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{r.sws} SWS</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.rolle}</td>
                         </tr>
                     ))}
                     </tbody>
