@@ -12,15 +12,17 @@ import java.util.Optional;
 @Repository
 public class SwsBerechnungDAO {
 
-    // CREATE - Neue SWS Berechnung
+    // CREATE
     public int create(SwsBerechnung swsBerechnung) throws SQLException {
+        // KORRIGIERT: SQL Syntax, Spaltennamen und VALUES hinzugefügt
         String sql = """
                 INSERT INTO SWS_BERECHNUNG
-                (arbet_id, betreuer_id, semester_id, pruefungsordnungId, sws_wert, rolle, berechnet_am)
+                (arbeit_id, betreuer_id, semester_id, pruefungsordnung_id, sws_wert, rolle, berechnet_am)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, swsBerechnung.getArbeitId());
             pstmt.setInt(2, swsBerechnung.getBetreuerId());
@@ -32,21 +34,22 @@ public class SwsBerechnungDAO {
 
             pstmt.executeUpdate();
 
-            try (ResultSet generaretedKey = pstmt.getGeneratedKeys()) {
-                if (generaretedKey.next()) {
-                    return generaretedKey.getInt(sql);
+            try (ResultSet generatedKey = pstmt.getGeneratedKeys()) {
+                if (generatedKey.next()) {
+                    return generatedKey.getInt(1);
                 }
                 throw new SQLException("Erstellen fehlgeschlagen, keine ID erhalten.");
             }
         }
     }
 
-    // READ - SWS Berechnung nach ID
+    // READ
     public Optional<SwsBerechnung> findById(int swsId) throws SQLException {
-        String sql = "SELECT * FROM SWS_BERECHNUNG WHERE sws_berechnung = ?";
+        // KORRIGIERT: Spaltenname im WHERE
+        String sql = "SELECT * FROM SWS_BERECHNUNG WHERE sws_id = ?";
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, swsId);
             ResultSet rs = pstmt.executeQuery();
@@ -60,13 +63,13 @@ public class SwsBerechnungDAO {
         }
     }
 
-    // READ - Alle SWS Berechnungen
+    // READ ALL
     public List<SwsBerechnung> findAll() throws SQLException {
         String sql = "SELECT * FROM SWS_BERECHNUNG";
         List<SwsBerechnung> sws = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
@@ -77,7 +80,7 @@ public class SwsBerechnungDAO {
         return sws;
     }
 
-    // UPDATE - SWS Berechnung aktualisieren
+    // UPDATE
     public boolean update(SwsBerechnung sws) throws SQLException {
         String sql = """
                 UPDATE SWS_BERECHNUNG
@@ -86,7 +89,7 @@ public class SwsBerechnungDAO {
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, sws.getArbeitId());
             pstmt.setInt(2, sws.getBetreuerId());
@@ -101,19 +104,18 @@ public class SwsBerechnungDAO {
         }
     }
 
-    // DELETE - SWS Berechnung löschen
+    // DELETE
     public boolean delete(int swsId) throws SQLException {
         String sql = "DELETE FROM SWS_BERECHNUNG WHERE sws_id = ?";
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, swsId);
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // Hilfsmethode: ResultSet in Objekt umwandeln
     private SwsBerechnung mapResultSet(ResultSet rs) throws SQLException {
         SwsBerechnung sws = new SwsBerechnung();
         sws.setSwsId(rs.getInt("sws_id"));

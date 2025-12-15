@@ -12,7 +12,6 @@ import java.util.Optional;
 @Repository
 public class ZeitdatenDAO {
 
-    // CREATE - Neue Zeitdaten anlegen
     public int create(Zeitdaten zeit) throws SQLException {
         String sql = """
                 INSERT INTO ZEITDATEN
@@ -21,31 +20,29 @@ public class ZeitdatenDAO {
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, zeit.getArbeitId());
-            pstmt.setDate(2, java.sql.Date.valueOf(zeit.getAnfangsdatum()));
-            pstmt.setDate(3, java.sql.Date.valueOf(zeit.getAbgabedatum()));
-            pstmt.setDate(4, java.sql.Date.valueOf(zeit.getKolloquiumsdatum()));
+            pstmt.setDate(2, zeit.getAnfangsdatum() != null ? java.sql.Date.valueOf(zeit.getAnfangsdatum()) : null);
+            pstmt.setDate(3, zeit.getAbgabedatum() != null ? java.sql.Date.valueOf(zeit.getAbgabedatum()) : null);
+            pstmt.setDate(4, zeit.getKolloquiumsdatum() != null ? java.sql.Date.valueOf(zeit.getKolloquiumsdatum()) : null);
+            pstmt.executeUpdate();
 
-            pstmt.executeQuery();
-
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    return generatedKeys.getInt(1);
+            // WORKAROUND
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                if (rs.next()) {
+                    return rs.getInt(1);
                 }
                 throw new SQLException("Erstellen fehlgeschlagen, keine ID erhalten.");
             }
         }
     }
 
-    // READ - Zeitdaten nach ID
     public Optional<Zeitdaten> findById(int zeitId) throws SQLException {
         String sql = "SELECT * FROM ZEITDATEN WHERE zeit_id = ?";
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, zeitId);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
@@ -58,14 +55,11 @@ public class ZeitdatenDAO {
         }
     }
 
-    // READ - Alle Zeitdaten
     public List<Zeitdaten> findAll() throws SQLException {
         String sql = "SELECT * FROM ZEITDATEN";
         List<Zeitdaten> zeit = new ArrayList<>();
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 zeit.add(mapResultSet(rs));
@@ -75,46 +69,42 @@ public class ZeitdatenDAO {
         return zeit;
     }
 
-    // UPDATE - Zeitdaten aktualisieren
     public boolean update(Zeitdaten zeit) throws SQLException {
         String sql = """
                 UPDATE ZEITDATEN
                 SET arbeit_id = ?, anfangsdatum = ?, abgabedatum = ?, kolloquiumsdatum = ?
                 WHERE zeit_id = ?
                 """;
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, zeit.getArbeitId());
-            pstmt.setDate(2, java.sql.Date.valueOf(zeit.getAnfangsdatum()));
-            pstmt.setDate(3, java.sql.Date.valueOf(zeit.getAbgabedatum()));
-            pstmt.setDate(4, java.sql.Date.valueOf(zeit.getKolloquiumsdatum()));
+            pstmt.setDate(2, zeit.getAnfangsdatum() != null ? java.sql.Date.valueOf(zeit.getAnfangsdatum()) : null);
+            pstmt.setDate(3, zeit.getAbgabedatum() != null ? java.sql.Date.valueOf(zeit.getAbgabedatum()) : null);
+            pstmt.setDate(4, zeit.getKolloquiumsdatum() != null ? java.sql.Date.valueOf(zeit.getKolloquiumsdatum()) : null);
             pstmt.setInt(5, zeit.getZeitId());
-
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // DELETE - Zeitdaten löschen
     public boolean delete(int zeitId) throws SQLException {
-        String sql = "DELETE ZEITDATEN WHERE zeit_id = ?";
+        String sql = "DELETE FROM ZEITDATEN WHERE zeit_id = ?";
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, zeitId);
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // Hilfsmethode: ResultSet in Objekt umwandeln
     private Zeitdaten mapResultSet(ResultSet rs) throws SQLException {
         Zeitdaten zeit = new Zeitdaten();
         zeit.setZeitId(rs.getInt("zeit_id"));
         zeit.setArbeitId(rs.getInt("arbeit_id"));
-        zeit.setAnfangsdatum(rs.getDate("anfangsdatum").toLocalDate());
-        zeit.setAbgabedatum(rs.getDate("abgabedatum").toLocalDate());
-        zeit.setKolloquiumsdatum(rs.getDate("kolloquiumsdatum").toLocalDate());
+        Date start = rs.getDate("anfangsdatum");
+        if(start != null) zeit.setAnfangsdatum(start.toLocalDate());
+        Date abgabe = rs.getDate("abgabedatum");
+        if(abgabe != null) zeit.setAbgabedatum(abgabe.toLocalDate());
+        Date koll = rs.getDate("kolloquiumsdatum");
+        if(koll != null) zeit.setKolloquiumsdatum(koll.toLocalDate());
         return zeit;
     }
 }

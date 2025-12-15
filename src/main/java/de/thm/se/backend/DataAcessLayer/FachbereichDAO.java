@@ -16,21 +16,22 @@ public class FachbereichDAO {
     public int create(Fachbereich fb) throws SQLException {
         String sql = """
                 INSERT INTO FACHBEREICH
-                (bezeichnung = ?, fbname = ?)
+                (bezeichnung, fbname)
                 VALUES(?, ?)
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, fb.getBezeichnung());
             pstmt.setString(2, fb.getFbname());
-
             pstmt.executeUpdate();
 
-            try (ResultSet generatedKey = pstmt.getGeneratedKeys()) {
-                if (generatedKey.next()) {
-                    return generatedKey.getInt(1);
+            // WORKAROUND: last_insert_rowid() statt getGeneratedKeys()
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                if (rs.next()) {
+                    return rs.getInt(1);
                 }
                 throw new SQLException("Erstellen fehlgeschlagen, keine ID erhalten.");
             }
@@ -42,13 +43,13 @@ public class FachbereichDAO {
         String sql = "SELECT * FROM FACHBEREICH WHERE fachbereich_id = ?";
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, id);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
                 Fachbereich fb = mapResultSet(rs);
-                DatabaseConnection.closeResultSet(rs);// ResultSet nach verarbeitung schließen
+                DatabaseConnection.closeResultSet(rs);
                 return Optional.of(fb);
             }
             DatabaseConnection.closeResultSet(rs);
@@ -62,7 +63,7 @@ public class FachbereichDAO {
         List<Fachbereich> fachbereiche = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
@@ -82,7 +83,7 @@ public class FachbereichDAO {
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, fachbereich.getBezeichnung());
             pstmt.setString(2, fachbereich.getFbname());
@@ -97,14 +98,13 @@ public class FachbereichDAO {
         String sql = "DELETE FROM FACHBEREICH WHERE fachbereich_id = ?";
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, fbId);
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // Hilfsmethode: ResultSet in Objekt umwandeln
     private Fachbereich mapResultSet(ResultSet rs) throws SQLException {
         Fachbereich fachbereich = new Fachbereich();
         fachbereich.setFachbereichId(rs.getInt("fachbereich_id"));

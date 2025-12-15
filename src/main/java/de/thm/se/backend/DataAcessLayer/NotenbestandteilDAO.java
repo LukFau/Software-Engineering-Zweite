@@ -12,7 +12,6 @@ import java.util.Optional;
 @Repository
 public class NotenbestandteilDAO {
 
-    // CREATE - Neuen Notenbestandteil
     public int create(Notenbestandteil note) throws SQLException {
         String sql = """
                 INSERT INTO NOTENBESTANDTEIL
@@ -21,7 +20,7 @@ public class NotenbestandteilDAO {
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, note.getArbeitId());
             pstmt.setInt(2, note.getBetreuerId());
@@ -29,10 +28,11 @@ public class NotenbestandteilDAO {
             pstmt.setDouble(4, note.getNoteArbeit());
             pstmt.setDouble(5, note.getNoteKolloquium());
             pstmt.setDouble(6, note.getGewichtung());
-
             pstmt.executeUpdate();
 
-            try (ResultSet generateKeys = pstmt.getGeneratedKeys()) {
+            // WORKAROUND
+            try (Statement stmt = conn.createStatement();
+                 ResultSet generateKeys = stmt.executeQuery("SELECT last_insert_rowid()")) {
                 if (generateKeys.next()) {
                     return generateKeys.getInt(1);
                 }
@@ -41,13 +41,10 @@ public class NotenbestandteilDAO {
         }
     }
 
-    // READ - Notenbestandteil nach ID Suchen
     public Optional<Notenbestandteil> findById(int id) throws SQLException {
         String sql = "SELECT * FROM NOTENBESTANDTEIL WHERE noten_id = ?";
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, id);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
@@ -60,16 +57,12 @@ public class NotenbestandteilDAO {
         }
     }
 
-    // READ - Alle Noten
     public List<Notenbestandteil> findAll() throws SQLException {
-        String sql = "SELECT * FROM NOTENBESTANDTEIL WHERE note_id = ?";
+        String sql = "SELECT * FROM NOTENBESTANDTEIL";
         List<Notenbestandteil> noten = new ArrayList<>();
-
         try (Connection conn = DatabaseConnection.connect();
-                Statement stmt = conn.createStatement()) {
-
+             Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(sql);
-
             while (rs.next()) {
                 noten.add(mapResultSet(rs));
             }
@@ -78,43 +71,35 @@ public class NotenbestandteilDAO {
         return noten;
     }
 
-    // UPDATE - Notenbestandteil aktualisieren
     public boolean update(Notenbestandteil note) throws SQLException {
         String sql = """
                 UPDATE NOTENBESTANDTEIL
-                SET rolle = ?, note_Arbeit = ?, note_kolloquium = ?, gewichtung = ?
+                SET rolle = ?, note_arbeit = ?, note_kolloquium = ?, gewichtung = ?
                 WHERE noten_id = ?
                 """;
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, note.getRolle());
             pstmt.setDouble(2, note.getNoteArbeit());
             pstmt.setDouble(3, note.getNoteKolloquium());
             pstmt.setDouble(4, note.getGewichtung());
             pstmt.setInt(5, note.getNotenId());
-
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // DELETE - Note löschen
     public boolean delete(int id) throws SQLException {
         String sql = "DELETE FROM NOTENBESTANDTEIL WHERE noten_id = ?";
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, id);
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // Hilfsmethode: ResultSet in Objetk umwandeln
     private Notenbestandteil mapResultSet(ResultSet rs) throws SQLException {
         Notenbestandteil note = new Notenbestandteil();
-        note.setNotenId(rs.getInt("note_id"));
+        note.setNotenId(rs.getInt("noten_id"));
         note.setArbeitId(rs.getInt("arbeit_id"));
         note.setBetreuerId(rs.getInt("betreuer_id"));
         note.setRolle(rs.getString("rolle"));

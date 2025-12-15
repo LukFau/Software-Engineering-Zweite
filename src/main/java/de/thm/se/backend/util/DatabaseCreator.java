@@ -1,24 +1,26 @@
 package de.thm.se.backend.util;
+
+import org.springframework.stereotype.Component;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+@Component
 public class DatabaseCreator {
 
     private static final String DB_URL = "jdbc:sqlite:profis.db";
 
     public void createDatabase() throws SQLException {
-        // Verbindung zur Datenbank herstellen (erstellt die Datei automatisch)
         try (Connection conn = DriverManager.getConnection(DB_URL);
              Statement stmt = conn.createStatement()) {
 
-            // Foreign Key Support aktivieren
             stmt.execute("PRAGMA foreign_keys = ON;");
 
-            // Tabellen erstellen
-            createStudierendeTable(stmt);
+            // Reihenfolge beachten wegen Foreign Keys!
+            createFachbereichTable(stmt); // NEU: Fachbereich muss vor Studiengang existieren
             createStudiengangTable(stmt);
+            createStudierendeTable(stmt);
             createPruefungsordnungTable(stmt);
             createSemesterzeitTable(stmt);
             createSemesterTable(stmt);
@@ -33,6 +35,39 @@ public class DatabaseCreator {
             System.out.println("Alle Tabellen wurden erfolgreich erstellt.");
         }
     }
+
+    // NEU: Methode für Fachbereich
+    private static void createFachbereichTable(Statement stmt) throws SQLException {
+        String sql = """
+            CREATE TABLE IF NOT EXISTS FACHBEREICH (
+                fachbereich_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bezeichnung TEXT,
+                fbname TEXT
+            );
+            """;
+        stmt.execute(sql);
+        System.out.println("Tabelle FACHBEREICH erstellt.");
+    }
+
+    private static void createStudiengangTable(Statement stmt) throws SQLException {
+        // KORRIGIERT: fachbereich_id hinzugefügt
+        String sql = """
+            CREATE TABLE IF NOT EXISTS STUDIENGANG (
+                studiengang_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fachbereich_id INTEGER NOT NULL, 
+                bezeichnung TEXT UNIQUE NOT NULL,
+                kuerzel TEXT,
+                abschlusstitel TEXT,
+                abschluss TEXT,
+                aktiv INTEGER DEFAULT 1,
+                FOREIGN KEY (fachbereich_id) REFERENCES FACHBEREICH(fachbereich_id)
+            );
+            """;
+        stmt.execute(sql);
+        System.out.println("Tabelle STUDIENGANG erstellt.");
+    }
+
+    // ... (Restliche Methoden bleiben gleich, hier der Vollständigkeit halber aufgeführt)
 
     private static void createStudierendeTable(Statement stmt) throws SQLException {
         String sql = """
@@ -50,20 +85,6 @@ public class DatabaseCreator {
         System.out.println("Tabelle STUDIERENDE erstellt.");
     }
 
-    private static void createStudiengangTable(Statement stmt) throws SQLException {
-        String sql = """
-            CREATE TABLE IF NOT EXISTS STUDIENGANG (
-                studiengang_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                bezeichnung TEXT UNIQUE NOT NULL,
-                kuerzel TEXT,
-                abschluss TEXT,
-                aktiv INTEGER DEFAULT 1
-            );
-            """;
-        stmt.execute(sql);
-        System.out.println("Tabelle STUDIENGANG erstellt.");
-    }
-
     private static void createPruefungsordnungTable(Statement stmt) throws SQLException {
         String sql = """
             CREATE TABLE IF NOT EXISTS PRUEFUNGSORDNUNG (
@@ -73,7 +94,7 @@ public class DatabaseCreator {
                 gueltig_ab DATE,
                 gueltig_bis DATE,
                 sws_referent INTEGER,
-                sws_korreferent INTEGER,
+                sws_koreferent INTEGER,
                 FOREIGN KEY (studiengang_id) REFERENCES STUDIENGANG(studiengang_id)
             );
             """;

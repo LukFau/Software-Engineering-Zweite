@@ -20,7 +20,7 @@ public class StudiengangDAO {
                 """;
 
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, sGang.getFachbereichId());
             pstmt.setString(2, sGang.getBezeichnung());
@@ -30,22 +30,21 @@ public class StudiengangDAO {
             pstmt.setBoolean(6, sGang.isAktiv());
             pstmt.executeUpdate();
 
-            try (ResultSet generatedKey = pstmt.getGeneratedKeys()) {
-                if (generatedKey.next()) {
-                    return generatedKey.getInt(1);
+            // WORKAROUND
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT last_insert_rowid()")) {
+                if (rs.next()) {
+                    return rs.getInt(1);
                 }
                 throw new SQLException("Erstellen fehlgeschlagen, keine ID erhalten.");
             }
         }
     }
 
-    // READ - Studiengang nach ID
     public Optional<Studiengang> findById(int sGangid) throws SQLException {
         String sql = "SELECT * FROM STUDIENGANG WHERE studiengang_id = ?";
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, sGangid);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
@@ -58,14 +57,11 @@ public class StudiengangDAO {
         }
     }
 
-    // READ - Alle Studiengang
     public List<Studiengang> findAll() throws SQLException {
         String sql = "SELECT * FROM STUDIENGANG";
         List<Studiengang> studiengaenge = new ArrayList<>();
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
                 studiengaenge.add(mapResultSet(rs));
@@ -75,17 +71,14 @@ public class StudiengangDAO {
         return studiengaenge;
     }
 
-    // UPDATE - Studiengang aktualisieren
     public boolean update(Studiengang studiengang) throws SQLException {
         String sql = """
                 UPDATE STUDIENGANG
                 SET fachbereich_id = ?, bezeichnung = ?, kuerzel = ?, abschlusstitel = ?, abschluss = ?, aktiv = ?
-                WHERE studiengangs_id = ?
+                WHERE studiengang_id = ?
                 """;
-
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, studiengang.getFachbereichId());
             pstmt.setString(2, studiengang.getBezeichnung());
             pstmt.setString(3, studiengang.getKuerzel());
@@ -93,24 +86,19 @@ public class StudiengangDAO {
             pstmt.setString(5, studiengang.getAbschluss());
             pstmt.setBoolean(6, studiengang.isAktiv());
             pstmt.setInt(7, studiengang.getStudiengangId());
-
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // DELETE - Studiengang löschen
     public boolean delete(int studiengangId) throws SQLException {
-        String sql = "DELETE FROM STUDIENGAGN WHERE studiengang_id = ?";
-
+        String sql = "DELETE FROM STUDIENGANG WHERE studiengang_id = ?";
         try (Connection conn = DatabaseConnection.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, studiengangId);
             return pstmt.executeUpdate() > 0;
         }
     }
 
-    // Hilfsmethode: ResultSet in Objekt umwandeln
     private Studiengang mapResultSet(ResultSet rs) throws SQLException {
         Studiengang studiengang = new Studiengang();
         studiengang.setStudiengangId(rs.getInt("studiengang_id"));
